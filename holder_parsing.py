@@ -1,16 +1,14 @@
-import requests
 from datetime import datetime
 from decimal import Decimal
 from collections import defaultdict
-from time import sleep
 import json
 import os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hex2x_backend.settings')
 import django
 django.setup()
 
-from hex2x_snapshot.web3int import W3int
-from hex2x_snapshot.models import HexUser
+from hex2x_backend.snapshot.web3int import W3int
+from hex2x_backend.snapshot.models import HexUser
 
 HEX_WIN_TOKEN_ADDRESS = '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39'
 CONTRACT_CREATION_BLOCK = 9041184
@@ -97,16 +95,71 @@ def iterate_from_beginning():
     iterate_from(start_block)
 
 
-def get_hex_balance_for_address(address):
-    w3 = W3int('parity')
-
+def load_hex_contract(web3_interface):
     with open('./HEX_abi.json', 'r') as f:
         erc20_abi = json.loads(f.read())
 
-    hex_contract = w3.interface.eth.contract(address=HEX_WIN_TOKEN_ADDRESS, abi=erc20_abi)
+    hex_contract = web3_interface.eth.contract(address=HEX_WIN_TOKEN_ADDRESS, abi=erc20_abi)
+    return hex_contract
+
+
+def get_hex_balance_for_multiple_address(w3_int, hex_contract, addr_list):
+    balance_info = {}
+
+    for addr in addr_list:
+        conv_address = w3_int.toChecksumAddress(addr.lower())
+        balance_info[addr] = hex_contract.functions.balanceOf(conv_address).call()
+
+    return balance_info
+
+
+def get_hex_balance_for_address(address):
+    w3 = W3int('parity')
+    hex_contract = load_hex_contract(w3.interface)
+    balance = get_hex_balance_for_multiple_address(w3.interface, hex_contract, [address])
+    return balance[address]
+
+
+def stake_response_to_dict(stake):
+    return {
+        'stake_id': stake[0],
+        'staked_hearts': stake[1],
+        'stake_shares': stake[2],
+        'locked_day': stake[3],
+        'staked_days': stake[4],
+        'unlocked_day': stake[5],
+        'is_auto_stake': stake[6]
+    }
+
+
+def get_stakes_for_address(address):
+    w3 = W3int('parity')
+
+    hex_contract = load_hex_contract(w3.interface)
     conv_address = w3.interface.toChecksumAddress(address.lower())
-    balance = hex_contract.functions.balanceOf(conv_address).call()
-    return balance
+    stake_count = hex_contract.functions.stakeCount(conv_address).call()
+    stake_list = []
+    for i in range(stake_count):
+        stake = hex_contract.functions.stakeLists(conv_address, i).call()
+        stake_list.append(stake_response_to_dict(stake))
+
+    return {'total': stake_count, 'stakes': stake_list}
+
+
+def get_current_hex_and_hearts(address):
+    hex_balance = get_hex_balance_for_address(address)
+    stakes_count = get_stakes_for_address(address)
+    stake_list = stakes_count['stakes']
+
+    total_hearts = 0
+    for stake in stake_list:
+        total_hearts += stake['staked_hearts']
+
+    return {
+        'hex': hex_balance,
+        'hearts_total': total_hearts,
+        'hex_hearts_total': hex_balance + total_hearts
+    }
 
 
 if __name__ == '__main__':

@@ -37,8 +37,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'hex2x_snapshot.apps.Hex2XSnapshotConfig',
-    'django_extensions'
+    'hex2x_backend.snapshot.apps.Hex2XSnapshotConfig',
+    'rest_framework',
+    'drf_yasg',
+    'django_extensions',
+    'hex2x_backend.snapshot'
 ]
 
 MIDDLEWARE = [
@@ -79,9 +82,9 @@ WSGI_APPLICATION = 'hex2x_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'hex2x_snapshot',
-        'USER': 'hex2x_snapshot',
-        'PASSWORD': 'hex2x_snapshot',
+        'NAME': 'snapshot',
+        'USER': 'snapshot',
+        'PASSWORD': 'snapshot',
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }
@@ -124,6 +127,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 STATIC_URL = '/static/'
 
 try:
